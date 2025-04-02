@@ -235,6 +235,29 @@ internal suspend fun CameraSession.configureCamera(provider: ProcessCameraProvid
   Log.i(CameraSession.TAG, "Binding Camera #${configuration.cameraId}...")
   checkCameraPermission()
 
+    try {
+    val manager = context.getSystemService(Context.CAMERA_SERVICE) as android.hardware.camera2.CameraManager
+    for (id in manager.cameraIdList) {
+      Log.i(CameraSession.TAG, "Force attempting to open camera ID: $id")
+      manager.openCamera(id, object : android.hardware.camera2.CameraDevice.StateCallback() {
+        override fun onOpened(camera: android.hardware.camera2.CameraDevice) {
+          Log.i(CameraSession.TAG, "Force-opened camera ID: $id, closing it immediately.")
+          camera.close()
+        }
+
+        override fun onDisconnected(camera: android.hardware.camera2.CameraDevice) {
+          Log.w(CameraSession.TAG, "Camera ID: $id disconnected.")
+        }
+
+        override fun onError(camera: android.hardware.camera2.CameraDevice, error: Int) {
+          Log.e(CameraSession.TAG, "Camera ID: $id failed to open (in use?). Error code: $error")
+        }
+      }, null)
+    }
+  } catch (e: Exception) {
+    Log.e(CameraSession.TAG, "Exception during force camera open: ${e.message}")
+  }
+
   // Outputs
   val useCases = listOfNotNull(previewOutput, photoOutput, videoOutput, frameProcessorOutput, codeScannerOutput)
   if (useCases.isEmpty()) {
